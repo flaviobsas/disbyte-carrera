@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Escala de Carrera · Engineering AI-first</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; background: #fff; color: #1E1E1E; }
+.app { display: flex; height: 100vh; overflow: hidden; }
+
+/* Sidebar */
+.sidebar { width: 210px; min-width: 210px; border-right: 1px solid #E5E5E5; display: flex; flex-direction: column; overflow-y: auto; background: #FAFAFA; }
+.sidebar-header { padding: 16px 16px 12px; border-bottom: 1px solid #E5E5E5; background: #fff; }
+.sidebar-logo { display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+.sidebar-logo img { width: 120px; height: auto; display: block; }
+.sidebar-header h1 { font-size: 15px; font-weight: 700; color: #1E1E1E; text-align: center; }
+.sidebar-header p { font-size: 12px; color: #888; margin-top: 2px; text-align: center; }
+
+.mode-toggle { display: flex; margin: 10px 10px 4px; background: #EFEFEF; border-radius: 8px; padding: 3px; }
+.mode-btn { flex: 1; padding: 5px 0; font-size: 11px; cursor: pointer; text-align: center; background: transparent; border: none; color: #888; font-family: inherit; border-radius: 6px; transition: all 0.15s; font-weight: 500; }
+.mode-btn.active { background: #fff; color: #1E1E1E; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+.track-label { padding: 12px 14px 3px; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #AAA; }
+
+.nav-item { display: flex; align-items: center; gap: 8px; padding: 8px 14px; cursor: pointer; border-left: 2px solid transparent; transition: background 0.1s; }
+.nav-item:hover { background: #F0F0F0; }
+.nav-item.active-home { background: #fff; border-left-color: #333; }
+.nav-item.active-single { background: #fff; }
+.nav-item.active-single.ic { border-left-color: #E8470A; }
+.nav-item.active-single.mgmt { border-left-color: #1A3A5C; }
+.nav-item.selected-a { background: #F5F0FF; }
+.nav-item.selected-b { background: #ECFAFF; }
+
+.nav-badge { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 5px; min-width: 34px; text-align: center; flex-shrink: 0; }
+.nav-badge.home { background: #333; color: #fff; }
+.nav-badge.ic { background: #FDE8DC; color: #9B2E04; }
+.nav-badge.mgmt { background: #D6E4F0; color: #0C2A45; }
+.nav-item.active-single .nav-badge.ic { background: #E8470A; color: #fff; }
+.nav-item.active-single .nav-badge.mgmt { background: #1A3A5C; color: #fff; }
+.nav-item.selected-a .nav-badge { background: #7C3AED !important; color: #fff !important; }
+.nav-item.selected-b .nav-badge { background: #0891B2 !important; color: #fff !important; }
+.nav-title { font-size: 13px; color: #333; line-height: 1.3; }
+.nav-markers { display: flex; gap: 3px; margin-left: auto; }
+.marker { width: 7px; height: 7px; border-radius: 50%; }
+.marker.a { background: #7C3AED; }
+.marker.b { background: #0891B2; }
+.compare-hint { padding: 10px 14px 14px; font-size: 11px; color: #999; line-height: 1.5; border-top: 1px solid #E5E5E5; margin-top: auto; }
+
+/* Content */
+.content { flex: 1; overflow-y: auto; background: #fff; }
+
+/* Home */
+.home-header { padding: 24px 32px 16px; border-bottom: 1px solid #EFEFEF; }
+.home-title { font-size: 26px; font-weight: 600; color: #1E1E1E; margin-bottom: 4px; }
+.home-sub { font-size: 15px; color: #888; }
+.home-tracks { display: flex; gap: 8px; margin-top: 12px; }
+.track-pill { font-size: 11px; font-weight: 500; padding: 4px 12px; border-radius: 20px; }
+.track-pill.ic { background: #FDE8DC; color: #9B2E04; }
+.track-pill.mgmt { background: #D6E4F0; color: #0C2A45; }
+.home-table-wrap { padding: 16px 32px 32px; }
+.scale-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.scale-table th { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #888; padding: 12px 18px; text-align: left; border-bottom: 2px solid #1E1E1E; }
+.scale-table td { padding: 0; vertical-align: middle; border-bottom: 1px solid #F0F0F0; }
+.scale-table tr:last-child td { border-bottom: none; }
+.table-cell { padding: 14px 18px; }
+.level-cell { padding: 14px 18px; }
+.level-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 5px; }
+.level-badge.ic { background: #E8470A; color: #fff; }
+.level-badge.mgmt { background: #1A3A5C; color: #fff; }
+.role-name { font-size: 14px; font-weight: 600; color: #1E1E1E; margin-bottom: 5px; }
+.role-track { font-size: 12px; color: #BBB; }
+.scope-text { font-size: 13px; color: #333; line-height: 1.6; }
+.scope-sub { font-size: 12px; color: #AAA; margin-top: 5px; display: block; line-height: 1.5; }
+.ai-text { font-size: 13px; color: #6B1D02; line-height: 1.6; font-style: italic; }
+.ai-text.mgmt { color: #0C2A45; }
+.principle-banner { margin: 0 32px 32px; padding: 14px 18px; background: #FEF4EF; border-left: 3px solid #E8470A; border-radius: 0 8px 8px 0; font-size: 12px; color: #6B1D02; font-style: italic; line-height: 1.6; }
+.row-clickable { cursor: pointer; transition: background 0.1s; }
+.row-clickable:hover td { background: #FAFAFA; }
+
+/* Single */
+.role-header { padding: 22px 28px 18px; border-bottom: 1px solid #EFEFEF; position: sticky; top: 0; background: #fff; z-index: 5; }
+.role-header-top { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+.role-level-pill { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px; white-space: nowrap; margin-top: 2px; }
+.role-level-pill.ic { background: #E8470A; color: #fff; }
+.role-level-pill.mgmt { background: #1A3A5C; color: #fff; }
+.role-title { font-size: 20px; font-weight: 600; color: #1E1E1E; }
+.role-subtitle { font-size: 12px; color: #888; margin-top: 2px; }
+.meta-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.meta-card { padding: 10px 12px; border-radius: 8px; border: 1px solid #EFEFEF; background: #FAFAFA; }
+.meta-card-label { font-size: 11px; color: #AAA; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; font-weight: 600; }
+.meta-card-value { font-size: 13px; color: #333; line-height: 1.4; }
+.meta-card.ai-ic { border-color: rgba(232,71,10,0.2); background: #FEF4EF; }
+.meta-card.ai-ic .meta-card-label { color: #9B2E04; }
+.meta-card.ai-ic .meta-card-value { color: #6B1D02; font-style: italic; }
+.meta-card.ai-mgmt { border-color: rgba(26,58,92,0.2); background: #EEF5FB; }
+.meta-card.ai-mgmt .meta-card-label { color: #0C2A45; }
+.meta-card.ai-mgmt .meta-card-value { color: #0C2A45; font-style: italic; }
+.sections { padding: 0 28px 32px; }
+.section { margin-top: 22px; }
+.section-title { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px solid #EFEFEF; }
+.section-title.ic { color: #9B2E04; border-bottom-color: rgba(232,71,10,0.25); }
+.section-title.mgmt { color: #0C2A45; border-bottom-color: rgba(26,58,92,0.25); }
+.bullet-list { display: flex; flex-direction: column; gap: 1px; }
+.bullet-item { display: flex; align-items: baseline; gap: 10px; padding: 8px 10px; border-radius: 6px; font-size: 14px; color: #333; line-height: 1.6; }
+.bullet-item:nth-child(odd) { background: #FAFAFA; }
+.bullet-dot { font-size: 15px; font-weight: 700; flex-shrink: 0; }
+.bullet-dot.ic { color: #E8470A; }
+.bullet-dot.mgmt { color: #1A3A5C; }
+
+/* Compare */
+.compare-header { display: grid; grid-template-columns: 150px 1fr 1fr; position: sticky; top: 0; z-index: 10; border-bottom: 1px solid #E5E5E5; background: #fff; }
+.compare-header-cell { padding: 16px 18px; border-right: 1px solid #E5E5E5; }
+.compare-header-cell:first-child { background: #FAFAFA; }
+.compare-header-cell:last-child { border-right: none; }
+.compare-col-badge { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.col-dot { width: 8px; height: 8px; border-radius: 50%; }
+.col-dot.a { background: #7C3AED; }
+.col-dot.b { background: #0891B2; }
+.col-label-a { font-size: 11px; font-weight: 600; color: #5B21B6; }
+.col-label-b { font-size: 11px; font-weight: 600; color: #0E7490; }
+.compare-col-level { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px; margin-bottom: 6px; }
+.compare-col-level.a { background: #EDE9FE; color: #5B21B6; }
+.compare-col-level.b { background: #CFFAFE; color: #0E7490; }
+.compare-col-title { font-size: 14px; font-weight: 600; color: #1E1E1E; margin-bottom: 2px; }
+.compare-col-sub { font-size: 11px; color: #888; }
+.radar-wrap { display: grid; grid-template-columns: 150px 1fr 1fr; border-bottom: 1px solid #E5E5E5; background: #FAFAFA; }
+.radar-label { padding: 16px; background: #FAFAFA; border-right: 1px solid #E5E5E5; display: flex; align-items: center; }
+.radar-label span { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #888; }
+.radar-chart-col { grid-column: 2 / 4; padding: 16px 24px; display: flex; justify-content: center; }
+.meta-compare { display: grid; grid-template-columns: 150px 1fr 1fr; border-bottom: 1px solid #E5E5E5; }
+.meta-compare-label { padding: 10px 16px; background: #FAFAFA; font-size: 10px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.06em; border-right: 1px solid #E5E5E5; border-bottom: 1px solid #E5E5E5; display: flex; align-items: center; }
+.meta-compare-val { padding: 10px 16px; font-size: 12px; color: #333; line-height: 1.4; border-right: 1px solid #E5E5E5; border-bottom: 1px solid #E5E5E5; }
+.meta-compare-val:last-child { border-right: none; }
+.meta-compare-val.ai { font-style: italic; }
+.compare-body { display: grid; grid-template-columns: 150px 1fr 1fr; }
+.compare-section-label { padding: 12px 14px; font-size: 10px; font-weight: 600; color: #888; letter-spacing: 0.06em; text-transform: uppercase; background: #FAFAFA; border-right: 1px solid #E5E5E5; border-bottom: 1px solid #E5E5E5; display: flex; align-items: flex-start; padding-top: 14px; }
+.compare-col { border-right: 1px solid #E5E5E5; border-bottom: 1px solid #E5E5E5; padding: 10px 16px; }
+.compare-col:last-child { border-right: none; }
+.compare-bullet { display: flex; align-items: baseline; gap: 8px; padding: 6px 0; font-size: 13px; color: #333; line-height: 1.5; border-bottom: 1px solid #F5F5F5; }
+.compare-bullet:last-child { border-bottom: none; }
+.compare-bullet-dot { font-size: 13px; font-weight: 700; flex-shrink: 0; }
+.compare-bullet-dot.a { color: #7C3AED; }
+.compare-bullet-dot.b { color: #0891B2; }
+.no-aplica { color: #CCC; font-size: 11px; padding: 8px 0; font-style: italic; }
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 60px 24px; color: #AAA; text-align: center; }
+.empty-title { font-size: 14px; color: #666; margin-bottom: 6px; font-weight: 500; }
+.empty-sub { font-size: 12px; color: #AAA; line-height: 1.5; }
+.selected-info { margin-top: 16px; padding: 10px 16px; background: #F5F0FF; border-radius: 8px; font-size: 12px; color: #5B21B6; display: flex; align-items: center; gap: 8px; }
+</style>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo"><img src="data:image/png;base64,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" alt="Disbyte"></div>
+      <p>Engineering · AI-first</p>
+    </div>
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="btn-single" onclick="setMode('single')">Detalle</button>
+      <button class="mode-btn" id="btn-compare" onclick="setMode('compare')">Comparar</button>
+    </div>
+    <div style="height:4px"></div>
+    <div class="nav-item" onclick="handleNav('home')" id="nav-home">
+      <span class="nav-badge home">⌂</span>
+      <span class="nav-title" style="font-weight:600">Resumen</span>
+    </div>
+    <div class="track-label">Track Management</div>
+    <div class="nav-item mgmt" onclick="handleNav('sem')" id="nav-sem"><span class="nav-badge mgmt" id="badge-sem">M2</span><span class="nav-title">Sr. Eng. Manager</span><div class="nav-markers" id="markers-sem"></div></div>
+    <div class="nav-item mgmt" onclick="handleNav('em')" id="nav-em"><span class="nav-badge mgmt" id="badge-em">M1</span><span class="nav-title">Eng. Manager</span><div class="nav-markers" id="markers-em"></div></div>
+    <div class="track-label">Track IC</div>
+    <div class="nav-item ic" onclick="handleNav('tl')" id="nav-tl"><span class="nav-badge ic" id="badge-tl">IC4/5</span><span class="nav-title">Tech Lead</span><div class="nav-markers" id="markers-tl"></div></div>
+    <div class="nav-item ic" onclick="handleNav('sr')" id="nav-sr"><span class="nav-badge ic" id="badge-sr">IC3</span><span class="nav-title">SR Eng.</span><div class="nav-markers" id="markers-sr"></div></div>
+    <div class="nav-item ic" onclick="handleNav('ssr')" id="nav-ssr"><span class="nav-badge ic" id="badge-ssr">IC2</span><span class="nav-title">SSR Eng.</span><div class="nav-markers" id="markers-ssr"></div></div>
+    <div class="nav-item ic" onclick="handleNav('jr')" id="nav-jr"><span class="nav-badge ic" id="badge-jr">IC1</span><span class="nav-title">Junior Eng.</span><div class="nav-markers" id="markers-jr"></div></div>
+    <div class="compare-hint" id="compare-hint" style="display:none">Seleccioná dos roles para comparar.</div>
+  </div>
+  <div class="content" id="content"></div>
+</div>
+
+<script>
+const ROLES = {
+  jr:{level:"IC1",title:"Junior Software Engineer",subtitle:"Posición técnica · Tiempo completo",track:"ic",area:"El equipo del que es parte.",autonomia:"Trabaja con tareas definidas y recibe guía y dirección constante.",ai:"Explora la IA con soporte del equipo. Aprende a leer y cuestionar el output. El ownership siempre es suyo.",radar:{autonomia:1,impacto:1,tecnico:2,liderazgo:1,ia:1},sections:[{title:"Trabajo en equipo y cultura",bullets:["Trabaja colaborativamente y participa de momentos de celebración de logros.","Expresa su opinión de forma abierta y auténtica con su equipo.","Elabora las tareas que le asignan con autonomía considerando las pautas del equipo.","Trabaja de forma efectiva en equipos de diversas perspectivas.","Comparte con el equipo lo que va aprendiendo sobre herramientas de IA."]},{title:"Velocidad y adaptación",bullets:["Demuestra curiosidad, incluyendo la exploración de herramientas de IA con soporte del equipo.","Entiende las reglas del juego y acepta los cambios.","Analiza datos para generar información clave que colabore en la toma de decisiones.","Participa de dinámicas colaborativas para aprender de los errores y buscar soluciones.","Explora nuevas formas de hacer las cosas y está abierto a incorporar herramientas de IA."]},{title:"Foco en resultados e impacto",bullets:["Trabaja poniendo al cliente en el centro y busca brindar soluciones de calidad.","Sigue el orden de prioridades establecido para enfocarse en las tareas que agregan valor.","Comprende que siempre hay potencial de crecimiento y busca formas de mejorar.","Entiende que usar IA no transfiere la responsabilidad: el ownership siempre es suyo."]},{title:"Analysis & Design",bullets:["Comprende las características de mantenimiento, implicaciones y dependencias del software.","Entiende los beneficios de Single Responsibility y Open Closed para modelar soluciones sencillas.","Con apoyo del equipo, explora cuándo la IA puede ayudar en el diseño sin delegar la decisión."]},{title:"Development",bullets:["Puede desarrollar una feature entendiendo parcialmente las herramientas disponibles.","Aprende de los comentarios que recibe en los PR e incorpora conocimientos nuevos.","Con guía, comienza a usar herramientas de AI coding (Claude Code, Copilot, Cursor) como apoyo.","Aprende a leer y cuestionar el output generado por IA antes de integrarlo.","Desarrolla el hábito de validar lo que produce la IA contra los estándares de calidad del equipo."]},{title:"Testing",bullets:["Entiende los beneficios de testear y conoce que hay distintos tipos de testing.","Implementa de manera autónoma o con guía tests unitarios para las funcionalidades que realiza.","Entiende que el código generado por IA también necesita ser testeado con el mismo rigor."]},{title:"Delivery & Production Support",bullets:["Entiende qué métricas están siendo afectadas con el cambio que implementa.","Conoce y sabe usar herramientas de monitoreo a modo de consulta.","Con guía, comienza a entender que los sistemas con IA pueden comportarse distinto al código tradicional."]}]},
+  ssr:{level:"IC2",title:"SSR Software Engineer",subtitle:"Posición técnica · Tiempo completo",track:"ic",area:"El equipo del que es parte.",autonomia:"Trabaja con autonomía y propone mejoras. Recibe guía moderada de personas con más experiencia.",ai:"Incorpora herramientas de IA en su flujo cotidiano. Desarrolla criterio propio para evaluar y validar el output.",radar:{autonomia:2,impacto:2,tecnico:3,liderazgo:1,ia:2},sections:[{title:"Trabajo en equipo y cultura",bullets:["Fomenta el trabajo colaborativo, es confiable y participa activamente en celebración de logros.","Expresa su opinión de forma abierta y auténtica con su equipo.","Desarrolla las tareas con autonomía y compromiso, considerando los lineamientos del equipo.","Trabaja de forma efectiva en equipos de diversas perspectivas y busca incorporar diferentes miradas.","Comparte con el equipo lo que aprende sobre herramientas de IA, contribuyendo a elevar el nivel colectivo."]},{title:"Velocidad y adaptación",bullets:["Demuestra curiosidad, incluyendo la exploración activa de herramientas y flujos con IA.","Entiende las reglas del juego, acepta los cambios y se adapta con fluidez.","Analiza datos para generar información clave que colabore en la toma de decisiones.","Participa de dinámicas colaborativas para aprender de los errores y buscar soluciones.","Prueba nuevas formas de hacer las cosas y está abierto a incorporar herramientas de IA."]},{title:"Foco en resultados e impacto",bullets:["Trabaja poniendo al cliente en el centro y busca brindar soluciones de calidad.","Sigue el orden de prioridades establecido para enfocarse en las tareas que agregan valor.","Comprende que siempre hay potencial de crecimiento y busca formas de mejorar.","Mantiene el ownership sobre la calidad del output, independientemente de si fue asistido por IA."]},{title:"Analysis & Design",bullets:["Conoce y aplica los principios SOLID. Hace trade-offs tiempo/esfuerzo/calidad con cierta guía.","Crea software flexible sin sobreingeniería, aplicando DRY, KISS y YAGNI.","Entiende cómo plantear un refactor de su módulo/servicio, identificando code smells.","Incorpora criterio para evaluar cuándo tiene sentido usar IA en el diseño, con guía de pares.","Entiende los trade-offs básicos de incorporar IA: costo, latencia y confiabilidad."]},{title:"Development",bullets:["Puede hacer el bootstrapping de un proyecto nuevo usando herramientas y frameworks disponibles.","Participa activamente de los reviews de PR y de código en general del squad.","Implementa correctamente patrones de diseño y arquitectónicos siguiendo documentación.","Incorpora herramientas de AI coding en su flujo cotidiano para acelerar desarrollo.","Desarrolla criterio para revisar y validar el output de IA antes de integrarlo, sin aceptarlo ciegamente.","Aprende a construir prompts efectivos y ajusta su forma de trabajar según los resultados."]},{title:"Testing",bullets:["Entiende que los tests actúan como documentación de los casos de uso.","Comprende cómo la cobertura se relaciona con la calidad y seguridad del código.","Sabe usar los dobles de tests cuando, donde y como corresponde.","Entiende cómo funciona el CI y la importancia del mismo para la calidad.","Valida el código generado por IA con el mismo rigor que el escrito manualmente."]},{title:"Delivery & Production Support",bullets:["Entiende prioridades y urgencias y entrega sus tareas de acuerdo a ellas.","Hace un uso correcto de herramientas de CI/CD monitoreando métricas de salud.","Define una estrategia de rollout adecuada con feature toggle y flags. Participa de post mortems.","Comienza a familiarizarse con métricas de IA en producción con soporte del equipo."]}]},
+  sr:{level:"IC3",title:"SR Software Engineer",subtitle:"Posición técnica · Tiempo completo",track:"ic",area:"Pares e interlocutores en toda la compañía.",autonomia:"Trabaja con total autonomía y guía a personas con menos experiencia.",ai:"Diseña sistemas donde humanos y agentes de IA colaboran. Dueño del output final independientemente de quién lo generó.",radar:{autonomia:4,impacto:3,tecnico:4,liderazgo:2,ia:4},sections:[{title:"Trabajo en equipo y cultura",bullets:["Promueve una cultura de colaboración, confianza, reconocimiento y celebración de logros.","Desafía el status quo, compartiendo su opinión de forma abierta y auténtica con todas las personas.","Desempeña su rol de forma autónoma y con empatía.","Promueve una organización diversa e inclusiva donde se capitalizan las diferentes perspectivas.","Comparte aprendizajes sobre herramientas y prácticas de IA con el equipo."]},{title:"Velocidad y adaptación",bullets:["Se interesa por las nuevas tendencias — incluyendo frameworks de IA — y toma decisiones a tiempo.","Modifica sus planes con velocidad para responder a las necesidades cambiantes del negocio.","Busca información, la analiza y la toma en cuenta para tomar decisiones y realizar sus tareas.","Propone dinámicas colaborativas en las que se aprende de los errores y se buscan soluciones."]},{title:"Foco en resultados e impacto",bullets:["Toma decisiones poniendo al cliente en el centro y contribuye a generar resultados de calidad.","Identifica metas importantes y prioridades de su rol y las ejecuta para generar valor.","Genera planes de acción concretos. Colabora y es guía para que otras personas puedan desarrollarse.","Propone ideas e innova para incorporar mejoras en sus tareas o proyectos.","Mantiene el ownership sobre la calidad del output final, independientemente de si fue generado por un humano o un agente."]},{title:"Analysis & Design",bullets:["Hace trade-offs tiempo/esfuerzo/calidad de forma autónoma, aplicando conceptos de cohesión y acoplamiento.","Entiende cómo las decisiones de diseño impactan en la escalabilidad, mantenibilidad y calidad.","Diseña de forma autónoma soluciones desde cero utilizando patrones de diseño y arquitectónicos.","Diseña sistemas donde humanos y agentes colaboran: define qué delegar, cómo orquestar y cómo validar.","Tiene criterio para decidir cuándo un problema lo resuelve mejor un agente, un humano o una combinación.","Escribe especificaciones claras para que los agentes ejecuten tareas de forma efectiva y predecible.","Evalúa trade-offs al incorporar IA: latencia, costo, confiabilidad y mantenibilidad a largo plazo."]},{title:"Development",bullets:["Escribe código con la claridad necesaria para que cualquier miembro del equipo pueda leerlo.","Puede llevar adelante un refactor grande apoyándose en los demás miembros del equipo.","Conoce todas las herramientas y frameworks del stack y los usa de forma simple, resiliente e iterativa.","Utiliza herramientas de AI coding manteniendo siempre el ownership y criterio técnico.","Su foco se desplaza de escribir lógica línea por línea a definir comportamiento esperado y revisar.","Sabe construir prompts efectivos y tiene criterio para revisar, cuestionar e integrar el output de IA.","Conoce y puede integrar APIs de LLMs y definir herramientas para agentes cuando el caso lo justifica."]},{title:"Testing",bullets:["Es referente en su tecnología para implementar tests unitarios, de integración y aceptación.","Es capaz de realizar pruebas de performance sobre sus servicios y/o módulos.","Conoce y aplica los beneficios de TDD y BDD.","Valida el código generado por IA con el mismo rigor que el código escrito manualmente.","Sabe testear comportamiento de agentes y evaluar calidad de outputs de LLMs."]},{title:"Delivery & Production Support",bullets:["Despliega soluciones en producción, define y monitorea métricas de salud de sus servicios.","Identifica criticidad y da visibilidad ante incidencias, re-estableciendo el servicio con celeridad.","Genera post mortems y les hace seguimiento a sus accionables.","Monitorea dimensiones específicas de IA en producción: calidad de outputs, latencia, costos y degradación gradual.","Entiende los modos de falla de componentes de IA y diseña estrategias de mitigación y fallback."]}]},
+  tl:{level:"IC4/5",title:"Tech Lead / Expert",subtitle:"Posición técnica de referencia · Tiempo completo",track:"ic",area:"Pares e interlocutores en toda la compañía.",autonomia:"Total autonomía en temas complejos. Referente técnico del dominio. Guía a personas con menos experiencia.",ai:"Define la arquitectura de sistemas multi-agente del dominio. Establece los estándares y patrones que todo el equipo sigue.",radar:{autonomia:5,impacto:4,tecnico:5,liderazgo:3,ia:5},sections:[{title:"Trabajo en equipo y cultura",bullets:["Contribuye a construir una cultura de colaboración, confianza, reconocimiento y celebración de logros.","Promueve la expresión abierta y auténtica con todas las personas con las que se vincula.","Actúa siempre de forma autónoma y con empatía.","Promueve una organización diversa e inclusiva donde se capitalizan las diferentes perspectivas.","Es referente en el uso responsable y efectivo de IA, y actúa como multiplicador del conocimiento."]},{title:"Velocidad y adaptación",bullets:["Despliega su actitud emprendedora y toma riesgos para impulsar al negocio de manera sustentable.","Modifica sus planes con velocidad e inspira a otros a trabajar con flexibilidad.","Toma información valiosa para tomar decisiones con impacto en el negocio y el ecosistema.","Lidera dinámicas colaborativas en las que se aprende de los errores y se buscan soluciones.","Evalúa con criterio la adopción de nuevos modelos y frameworks agénticos habilitando al equipo vía PoCs."]},{title:"Foco en resultados e impacto",bullets:["Evalúa cada decisión poniendo al cliente en el centro. Anticipa sus necesidades para generar calidad.","Identifica prioridades en función de la estrategia del área y toma decisiones para generar valor.","Genera planes de acción concretos. Colabora y es guía para el desarrollo de otras personas.","Define objetivos ambiciosos y promueve la innovación constante.","Mantiene el ownership sobre la calidad del output final del dominio, independientemente de si fue generado por humanos o agentes."]},{title:"Analysis & Design",bullets:["Entiende completamente la arquitectura del dominio y cómo las distintas partes trabajan entre sí.","Participa y promueve activamente RFCs, identificando oportunidades y promoviendo soluciones escalables.","Es mentor del dominio en prácticas y principios de diseño (SOLID, Lean, DDD, Clean Architecture).","Define la arquitectura de sistemas multi-agente: orquestación, límites, comunicación y coherencia del output.","Establece los patrones de diseño con IA que el equipo sigue: prompts de sistema, herramientas para agentes.","Tiene criterio profundo para decidir qué delegar a agentes, qué mantener determinístico y cuándo combinar.","Anticipa riesgos de arquitectura específicos de IA: acoplamiento a proveedores, costos a escala, degradación."]},{title:"Development",bullets:["Es punto de contacto y referencia en al menos un área de expertise/stack.","Extrae complejidad común en soluciones de la tribu en servicios o librerías comunes.","Desarrolla en un nivel de abstracción que permite extensibilidad y reusabilidad de sus soluciones.","Realiza PoCs sobre tecnologías, modelos y frameworks agénticos nuevos habilitando al equipo.","Construye las primitivas reutilizables para que el equipo trabaje con IA de forma consistente."]},{title:"Testing",bullets:["Identifica en base a métricas dónde invertir más esfuerzo en calidad y cobertura.","Puede guiar a cualquiera en beneficios, principios y patrones de testing.","Define los estándares de evaluación para sistemas con IA a nivel de dominio.","Diseña estrategias de testing para comportamiento agéntico: cadenas de razonamiento, alucinaciones, edge cases.","Promueve una cultura de evaluación continua donde la calidad del output de IA es una métrica de primera clase."]},{title:"Delivery & Production Support",bullets:["Simplifica los procesos de delivery entre equipos buscando sinergias.","Detecta problemas recurrentes y los resuelve definitivamente.","Participa activamente en incidencias y actúa como post mortem partner.","Define estándares de observabilidad para IA en producción: métricas, alertas y detección de degradación.","Detecta patrones de falla recurrentes en sistemas con IA y los resuelve de forma estructural.","Garantiza que los sistemas con IA tengan estrategias de fallback claras."]}]},
+  em:{level:"M1",title:"Engineering Manager",subtitle:"Posición de liderazgo técnico · Tiempo completo",track:"mgmt",area:"Equipo que lidera, pares e interlocutores de toda la compañía.",autonomia:"Lidera un equipo de ingeniería. Sus decisiones se basan en la estrategia del área.",ai:"Transforma un equipo al modelo AI-first. Lidera humanos + agentes. Mide por output y valor generado, no por esfuerzo.",radar:{autonomia:3,impacto:4,tecnico:3,liderazgo:4,ia:4},sections:[{title:"Liderazgo de equipo",bullets:["Responsable directo por los outcomes del equipo (delivery, calidad, performance y métricas de negocio).","Lidera un equipo compuesto por personas y agentes de IA, diseñando cómo colaboran para maximizar el impacto.","Desarrolla a las personas del equipo, acompañando su crecimiento y adaptación al modelo AI-first.","Darle autonomía al equipo para tomar decisiones, confiando en su criterio y conocimiento.","Crear un ambiente donde se aprenda de los errores y el liderazgo sea accesible y horizontal.","Genera vínculos de confianza, reconoce los logros y celebra los resultados del equipo.","Adapta la estructura del equipo al nuevo paradigma: menor fricción en la ejecución, mayor foco en criterio técnico."]},{title:"Estrategia y ejecución",bullets:["Traduce las prioridades del negocio en objetivos claros y accionables para el equipo.","Define la estrategia de adopción de IA del equipo: herramientas, casos de uso, estándares y métricas de éxito.","Diseña los workflows del equipo incorporando IA de forma estructural — no como add-on.","Redefine la planificación y los ciclos de desarrollo en función de la nueva velocidad que habilita la IA.","Mide el impacto del equipo en términos de output y valor generado, no de esfuerzo o tiempo invertido.","Asegura ejecución consistente y predecible, removiendo bloqueos organizacionales y técnicos.","Balancea velocidad vs. calidad con criterio. Usa datos e información para tomar decisiones de calidad."]},{title:"Tecnología y calidad",bullets:["Asegura la calidad técnica y sostenibilidad de los sistemas bajo su responsabilidad.","Responsable por la estabilidad y operación de los sistemas en producción.","Comprende cómo funcionan los LLMs y sus limitaciones, y aplica ese conocimiento en decisiones de diseño.","Define y hace cumplir los estándares de uso de Claude Code y herramientas similares.","Identifica y gestiona los riesgos de seguridad, privacidad y confiabilidad asociados al uso de IA.","Impulsa la utilización de IA en todo el ciclo de vida del desarrollo."]},{title:"Trabajo en equipo y cultura",bullets:["Lograr que distintas áreas colaboren, se reconozcan y celebren los logros juntas.","Comunicarse con honestidad y directamente, y alentar al equipo a hacer lo mismo.","Armar equipos con perfiles diversos y crear un ambiente donde cada persona pueda aportar.","Impulsar una actitud proactiva: tomar riesgos calculados y moverse con velocidad.","Construye una cultura donde la IA es un habilitador del equipo, fomentando el aprendizaje continuo."]},{title:"Desarrollo de personas",bullets:["Identificar el potencial de las personas del equipo y ayudarlas a desarrollarse.","Comunicar prioridades con claridad y mantener el foco en lo que realmente importa.","Plantear objetivos ambiciosos y abrir espacio para la innovación.","Identifica brechas de habilidades en IA y genera planes de desarrollo concretos para cerrarlas.","Eleva continuamente el nivel del equipo en el uso de IA: comparte prácticas y genera espacios de aprendizaje.","Ayuda a cada persona a encontrar su forma óptima de trabajar con asistencia de IA."]},{title:"Competencias",bullets:["Colaboración y confianza: construye relaciones de confianza, escucha distintas perspectivas.","Velocidad y adaptación: toma decisiones a tiempo, ajusta planes con agilidad, se mantiene al día con IA.","Foco en resultados e impacto: prioriza lo que genera más valor, usa la IA como palanca para multiplicar el impacto.","Evalúa el desempeño del equipo por el valor que genera, no por el esfuerzo o el tiempo dedicado."]}]},
+  sem:{level:"M2",title:"Sr. Engineering Manager",subtitle:"Posición de liderazgo técnico · Tiempo completo",track:"mgmt",area:"Los equipos que lidera, sus pares y referentes de distintas áreas de la compañía.",autonomia:"Lidera múltiples equipos de ingeniería y managers. Trabaja con autonomía para tomar decisiones de alto impacto.",ai:"Escala el modelo AI-first a través de múltiples equipos. Define la estrategia de IA del área.",radar:{autonomia:5,impacto:5,tecnico:3,liderazgo:5,ia:5},sections:[{title:"Liderazgo de equipos",bullets:["Responsable directo por outcomes medibles del área (delivery, calidad, performance y métricas de negocio).","Desarrolla y lidera managers, asegurando consistencia en liderazgo, ejecución, cultura y adopción AI-first.","Darle autonomía al equipo para tomar decisiones, confiando en su criterio y conocimiento.","Ayudar a las personas a crecer y adaptarse rápido, especialmente en el nuevo paradigma con IA.","Crear un ambiente donde se aprenda de los errores y el liderazgo sea accesible y horizontal.","Lidera una organización donde humanos y agentes de IA colaboran a nivel de área."]},{title:"Estrategia y ejecución",bullets:["Define la estrategia del área en línea con las prioridades del negocio.","Participa activamente en decisiones estratégicas con impacto en revenue, costos y eficiencia operativa.","Define la estrategia de IA del área: qué capacidades construir, qué herramientas adoptar y cómo escalar el modelo AI-first.","Redefine la planificación y los procesos de ejecución en función de la nueva velocidad que habilita la IA.","Mide el impacto del área en términos de valor generado, no de esfuerzo o capacidad instalada.","Asegura ejecución consistente y predecible. Remueve bloqueos activamente."]},{title:"Tecnología y arquitectura",bullets:["Ayuda en la definición de lineamientos técnicos y de arquitectura a nivel de área.","Es responsable de asegurar la calidad técnica y sostenibilidad de los sistemas en el tiempo.","Responsable por la estabilidad y operación de los sistemas en producción.","Define los estándares de uso de IA en el ciclo de desarrollo a nivel de área.","Garantiza que los sistemas con IA operen de forma confiable en producción.","Identifica y gestiona los riesgos de seguridad, privacidad y confiabilidad a escala de área."]},{title:"Trabajo en equipo y cultura",bullets:["Lograr que distintas áreas colaboren, se reconozcan y celebren los logros juntas.","Comunicarse con honestidad y directamente, y alentar al equipo a hacer lo mismo.","Armar equipos con perfiles diversos y crear un ambiente donde cada persona pueda aportar.","Impulsar una actitud proactiva: tomar riesgos calculados y moverse con velocidad.","Construye una cultura AI-first a escala de área: aprendizaje continuo y ownership total."]},{title:"Desarrollo de personas y negocio",bullets:["Identificar el potencial de las personas del equipo y ayudarlas a desarrollarse.","Comunicar prioridades con claridad y mantener el foco en lo que realmente importa.","Plantear objetivos ambiciosos y abrir espacio para la innovación.","Contribuir activamente al crecimiento del negocio, buscando siempre formas de mejorar.","Asegura que cada manager tenga un plan claro para elevar las capacidades de IA de sus equipos.","Identifica los perfiles que el área necesita para operar en un modelo AI-first."]},{title:"Competencias",bullets:["Colaboración y confianza: construye relaciones de confianza, genera espacios para compartir aprendizajes de IA.","Velocidad y adaptación: toma decisiones a tiempo, se mantiene a la vanguardia del ecosistema de IA.","Foco en resultados e impacto: prioriza lo que genera más valor, usa la IA como palanca estratégica.","Evalúa el desempeño del área por el valor que genera para el negocio, no por el esfuerzo invertido."]}]}
+};
+
+let mode = 'single';
+let currentView = 'home';
+let selectedA = null;
+let selectedB = null;
+let radarChart = null;
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('btn-single').classList.toggle('active', m === 'single');
+  document.getElementById('btn-compare').classList.toggle('active', m === 'compare');
+  document.getElementById('compare-hint').style.display = m === 'compare' ? 'block' : 'none';
+  if (m === 'single') { selectedA = null; selectedB = null; }
+  updateNav(); render();
+}
+
+function handleNav(key) {
+  if (mode === 'single' || key === 'home') {
+    currentView = key;
+    if (key !== 'home') selectedA = selectedB = null;
+  } else {
+    if (selectedA === key) selectedA = null;
+    else if (selectedB === key) selectedB = null;
+    else if (!selectedA) selectedA = key;
+    else if (!selectedB) selectedB = key;
+    else { selectedA = selectedB; selectedB = key; }
+    currentView = 'compare';
+  }
+  updateNav(); render();
+}
+
+function updateNav() {
+  const allKeys = ['home', ...Object.keys(ROLES)];
+  allKeys.forEach(key => {
+    const nav = document.getElementById('nav-' + key);
+    if (!nav) return;
+    const markers = document.getElementById('markers-' + key);
+    nav.classList.remove('active-home','active-single','selected-a','selected-b');
+    if (markers) markers.innerHTML = '';
+    if (mode === 'single' || key === 'home') {
+      if (key === currentView) nav.classList.add(key === 'home' ? 'active-home' : 'active-single');
+    } else {
+      if (key === selectedA) { nav.classList.add('selected-a'); if(markers) markers.innerHTML = '<div class="marker a"></div>'; }
+      if (key === selectedB) { nav.classList.add('selected-b'); if(markers) markers.innerHTML += '<div class="marker b"></div>'; }
+    }
+  });
+}
+
+function renderHome() {
+  const rows = [
+{key:'sem',mgmt:true}, {key:'em',mgmt:true},
+{key:'tl',mgmt:false}, {key:'sr',mgmt:false}, {key:'ssr',mgmt:false}, {key:'jr',mgmt:false}
+  ];
+  const tableRows = rows.map(({key,mgmt}) => {
+    const r = ROLES[key];
+    const tc = r.track;
+    return `<tr class="row-clickable" onclick="goDetail('${key}')">
+      <td class="level-cell"><span class="level-badge ${tc}">${r.level}</span></td>
+      <td class="table-cell"><div class="role-name">${r.title}</div><div class="role-track">${mgmt ? 'Management' : 'Individual Contributor'}</div></td>
+      <td class="table-cell"><div class="scope-text">${r.area}<span class="scope-sub">${r.autonomia}</span></div></td>
+      <td class="table-cell"><div class="ai-text ${mgmt?'mgmt':''}">${r.ai}</div></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('content').innerHTML = `
+    <div class="home-header">
+      <div class="home-title">Escala de carrera · Engineering</div>
+      <div class="home-sub">Progresión AI-first · Todos los niveles</div>
+      <div class="home-tracks">
+        <span class="track-pill ic">Track IC · Junior → SSR → SR → Tech Lead</span>
+        <span class="track-pill mgmt">Track Management · EM → Sr. EM</span>
+      </div>
+    </div>
+    <div class="home-table-wrap">
+      <table class="scale-table">
+        <thead><tr>
+          <th style="width:70px">Nivel</th>
+          <th style="width:220px">Rol</th>
+          <th>Scope y autonomía</th>
+          <th>Rol con la IA</th>
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>
+    <div class="principle-banner">
+      Principio transversal: Usar IA no transfiere la responsabilidad sobre la calidad del output. El criterio, la revisión y el ownership siempre son de la persona.
+    </div>`;
+}
+
+function goDetail(key) {
+  setMode('single');
+  currentView = key;
+  updateNav();
+  renderSingle(key);
+}
+
+function renderSingle(key) {
+  const r = ROLES[key];
+  const tc = r.track;
+  const aiClass = tc === 'ic' ? 'ai-ic' : 'ai-mgmt';
+  const sectionsHTML = r.sections.map(s => `
+    <div class="section">
+      <div class="section-title ${tc}">${s.title}</div>
+      <div class="bullet-list">
+        ${s.bullets.map(b => `<div class="bullet-item"><span class="bullet-dot ${tc}">›</span><span>${b}</span></div>`).join('')}
+      </div>
+    </div>`).join('');
+  document.getElementById('content').innerHTML = `
+    <div class="role-header">
+      <div class="role-header-top">
+        <span class="role-level-pill ${tc}">${r.level}</span>
+        <div><div class="role-title">${r.title}</div><div class="role-subtitle">${r.subtitle}</div></div>
+      </div>
+      <div class="meta-grid">
+        <div class="meta-card"><div class="meta-card-label">Área de influencia</div><div class="meta-card-value">${r.area}</div></div>
+        <div class="meta-card"><div class="meta-card-label">Autonomía</div><div class="meta-card-value">${r.autonomia}</div></div>
+        <div class="meta-card ${aiClass}"><div class="meta-card-label">Rol con la IA</div><div class="meta-card-value">${r.ai}</div></div>
+      </div>
+    </div>
+    <div class="sections">${sectionsHTML}</div>`;
+}
+
+function renderCompare(keyA, keyB) {
+  if (radarChart) { radarChart.destroy(); radarChart = null; }
+  const rA = ROLES[keyA], rB = ROLES[keyB];
+  const allSections = [...new Set([...rA.sections.map(s=>s.title),...rB.sections.map(s=>s.title)])];
+
+  const headerHTML = `
+    <div class="compare-header">
+      <div class="compare-header-cell"></div>
+      <div class="compare-header-cell">
+        <div class="compare-col-badge"><div class="col-dot a"></div><span class="col-label-a">Rol A</span></div>
+        <div class="compare-col-level a">${rA.level}</div>
+        <div class="compare-col-title">${rA.title}</div>
+        <div class="compare-col-sub">${rA.subtitle}</div>
+      </div>
+      <div class="compare-header-cell">
+        <div class="compare-col-badge"><div class="col-dot b"></div><span class="col-label-b">Rol B</span></div>
+        <div class="compare-col-level b">${rB.level}</div>
+        <div class="compare-col-title">${rB.title}</div>
+        <div class="compare-col-sub">${rB.subtitle}</div>
+      </div>
+    </div>`;
+
+  const radarHTML = `
+    <div class="radar-wrap">
+      <div class="radar-label"><span>Perfil de competencias</span></div>
+      <div class="radar-chart-col" style="grid-column:2/4">
+        <div style="position:relative;width:420px;height:260px"><canvas id="radarCanvas"></canvas></div>
+      </div>
+    </div>`;
+
+  const metaRows = [['Área de influencia','area',''],['Autonomía','autonomia',''],['Rol con la IA','ai',' ai']]
+    .map(([label,field,cls]) => `
+      <div class="meta-compare-label">${label}</div>
+      <div class="meta-compare-val${cls}">${rA[field]}</div>
+      <div class="meta-compare-val${cls}">${rB[field]}</div>`).join('');
+
+  const bodyRows = allSections.map(title => {
+    const sA = rA.sections.find(s=>s.title===title);
+    const sB = rB.sections.find(s=>s.title===title);
+    const maxLen = Math.max(sA?sA.bullets.length:0, sB?sB.bullets.length:0);
+    const colA = sA ? Array.from({length:maxLen},(_,i)=>`<div class="compare-bullet"><span class="compare-bullet-dot a">›</span><span>${sA.bullets[i]||'—'}</span></div>`).join('') : '<div class="no-aplica">No aplica en este nivel</div>';
+    const colB = sB ? Array.from({length:maxLen},(_,i)=>`<div class="compare-bullet"><span class="compare-bullet-dot b">›</span><span>${sB.bullets[i]||'—'}</span></div>`).join('') : '<div class="no-aplica">No aplica en este nivel</div>';
+    return `<div class="compare-section-label">${title}</div><div class="compare-col">${colA}</div><div class="compare-col">${colB}</div>`;
+  }).join('');
+
+  document.getElementById('content').innerHTML = `
+    ${headerHTML}${radarHTML}
+    <div class="meta-compare">${metaRows}</div>
+    <div class="compare-body">${bodyRows}</div>`;
+
+  const labels = ['Autonomía','Impacto','Técnico','Liderazgo','IA'];
+  const dA = rA.radar;
+  const dB = rB.radar;
+  radarChart = new Chart(document.getElementById('radarCanvas'), {
+    type: 'radar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: rA.title,
+          data: [dA.autonomia, dA.impacto, dA.tecnico, dA.liderazgo, dA.ia],
+          backgroundColor: 'rgba(124,58,237,0.12)',
+          borderColor: '#7C3AED',
+          pointBackgroundColor: '#7C3AED',
+          pointRadius: 4,
+          borderWidth: 2
+        },
+        {
+          label: rB.title,
+          data: [dB.autonomia, dB.impacto, dB.tecnico, dB.liderazgo, dB.ia],
+          backgroundColor: 'rgba(8,145,178,0.12)',
+          borderColor: '#0891B2',
+          pointBackgroundColor: '#0891B2',
+          pointRadius: 4,
+          borderWidth: 2
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        r: {
+          min: 0, max: 5,
+          ticks: { stepSize: 1, display: false },
+          pointLabels: { font: { size: 11, family: 'Arial' }, color: '#555' },
+          grid: { color: '#E5E5E5' },
+          angleLines: { color: '#E5E5E5' }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}/5`
+          }
+        }
+      }
+    }
+  });
+}
+
+function render() {
+  if (radarChart) { radarChart.destroy(); radarChart = null; }
+  if (currentView === 'home') { renderHome(); return; }
+  if (mode === 'single') { renderSingle(currentView); return; }
+  if (selectedA && selectedB) { renderCompare(selectedA, selectedB); return; }
+  document.getElementById('content').innerHTML = `
+    <div class="empty-state">
+      <div style="font-size:28px;margin-bottom:12px">⇄</div>
+      <div class="empty-title">Comparador de roles</div>
+      <div class="empty-sub">Seleccioná dos roles en la barra lateral para ver la comparación lado a lado con gráfico de competencias.</div>
+      ${selectedA ? `<div class="selected-info"><div class="col-dot a"></div>${ROLES[selectedA].title} seleccionado — elegí otro para comparar.</div>` : ''}
+    </div>`;
+}
+
+updateNav(); render();
+</script>
+</body>
+</html>
